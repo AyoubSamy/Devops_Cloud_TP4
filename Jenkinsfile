@@ -7,7 +7,7 @@ pipeline {
     }
 
     triggers {
-        pollSCM('* * * * *')
+        pollSCM('H/1 * * * *')
     }
 
     environment {
@@ -18,7 +18,9 @@ pipeline {
     stages {
         stage('Cloning Git') {
             steps {
-                checkout scm
+                git branch: 'main',
+                    credentialsId: 'github-credentials',
+                    url: 'https://github.com/AyoubSamy/Devops_Cloud_TP4.git'
             }
         }
 
@@ -36,7 +38,7 @@ pipeline {
             steps {
                 bat '''
                     @echo off
-                    docker run --rm %REGISTRY%:%BUILD_NUMBER% nginx -t
+                    docker run --rm "%REGISTRY%:%BUILD_NUMBER%" nginx -t
                     if errorlevel 1 exit /b 1
                 '''
             }
@@ -56,6 +58,23 @@ pipeline {
                         image.push()
                     }
                 }
+            }
+        }
+
+        stage('Deploy image') {
+            steps {
+                bat '''
+                    @echo off
+
+                    docker container inspect tp4-web >nul 2>&1
+                    if not errorlevel 1 (
+                        docker rm -f tp4-web
+                        if errorlevel 1 exit /b 1
+                    )
+
+                    docker run -d --name tp4-web -p 8081:80 "%REGISTRY%:%BUILD_NUMBER%"
+                    if errorlevel 1 exit /b 1
+                '''
             }
         }
     }
